@@ -19,6 +19,8 @@ package feign.form.multipart;
 import static lombok.AccessLevel.PRIVATE;
 
 import java.io.File;
+import java.nio.charset.Charset;
+import java.util.Arrays;
 
 import feign.codec.EncodeException;
 import lombok.experimental.FieldDefaults;
@@ -30,36 +32,49 @@ import lombok.val;
  */
 @FieldDefaults(level = PRIVATE, makeFinal = true)
 public class ManyFilesWriter extends AbstractWriter {
+  private static Iterable<?> toIterable (Object value) {
+    if (value instanceof File[]) {
+      return Arrays.asList((File[]) value);
+    }
+    if (value instanceof Iterable) {
+      return (Iterable<?>) value;
+    }
+    return null;
+  }
 
   SingleFileWriter fileWriter = new SingleFileWriter();
 
   @Override
   public boolean isApplicable (Object value) {
-    if (value instanceof File[]) {
-      return true;
-    }
-    if (!(value instanceof Iterable)) {
+    val iterable = toIterable(value);
+    if (iterable == null) {
       return false;
     }
-    val iterable = (Iterable<?>) value;
     val iterator = iterable.iterator();
-    return iterator.hasNext() && iterator.next() instanceof File;
+    return iterator.hasNext() && fileWriter.isApplicable(iterator.next());
   }
 
   @Override
   public void write (Output output, String boundary, String key, Object value) throws EncodeException {
-    if (value instanceof File[]) {
-      val files = (File[]) value;
-      for (val file : files) {
-        fileWriter.write(output, boundary, key, file);
-      }
-    } else if (value instanceof Iterable) {
-      val iterable = (Iterable<?>) value;
-      for (val file : iterable) {
-        fileWriter.write(output, boundary, key, file);
-      }
-    } else {
-      throw new IllegalArgumentException();
+    val iterable = toIterable(value);
+    if (iterable == null) {
+      throw new IllegalArgumentException(String.valueOf(value));
     }
+    for (val file : iterable) {
+      fileWriter.write(output, boundary, key, file);
+    }
+  }
+
+  @Override
+  public int length (Charset charset, String boundary, String key, Object value) {
+    val iterable = toIterable(value);
+    if (iterable == null) {
+      throw new IllegalArgumentException(String.valueOf(value));
+    }
+    int result = 0;
+    for (val file : iterable) {
+      result += fileWriter.length(charset, boundary, key, file);
+    }
+    return result;
   }
 }

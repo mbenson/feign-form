@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.nio.charset.CharsetEncoder;
 
 import feign.codec.EncodeException;
 import lombok.extern.slf4j.Slf4j;
@@ -63,5 +64,12 @@ public class SingleFileWriter extends AbstractWriter {
         }
       }
     }
+  }
+
+  @Override
+  protected int length (CharsetEncoder encoder, String key, Object value) {
+    val file = (File) value;
+    return fileMetadataLength(encoder, key, file.getName(), null)
+        + (int) file.length();
   }
 }

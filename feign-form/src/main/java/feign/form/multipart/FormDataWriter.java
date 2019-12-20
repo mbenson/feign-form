@@ -16,9 +16,10 @@
 
 package feign.form.multipart;
 
+import java.nio.charset.CharsetEncoder;
+
 import feign.codec.EncodeException;
 import feign.form.FormData;
-
 import lombok.val;
 
 /**
@@ -38,5 +39,13 @@ public class FormDataWriter extends AbstractWriter {
     val formData = (FormData) value;
     writeFileMetadata(output, key, formData.getFileName(), formData.getContentType());
     output.write(formData.getData());
+  }
+
+  @Override
+  public int length (CharsetEncoder encoder, String key, Object value) {
+    val formData = (FormData) value;
+
+    return fileMetadataLength(encoder, key, formData.getFileName(), formData.getContentType())
+        + formData.getData().length;
   }
 }

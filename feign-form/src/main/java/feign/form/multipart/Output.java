@@ -18,13 +18,12 @@ package feign.form.multipart;
 
 import static lombok.AccessLevel.PRIVATE;
 
-import java.io.ByteArrayOutputStream;
 import java.io.Closeable;
 import java.io.IOException;
+import java.nio.ByteBuffer;
 import java.nio.charset.Charset;
 
 import lombok.Getter;
-import lombok.RequiredArgsConstructor;
 import lombok.SneakyThrows;
 import lombok.experimental.FieldDefaults;
 
@@ -33,14 +32,34 @@ import lombok.experimental.FieldDefaults;
  *
  * @author Artem Labazin
  */
-@RequiredArgsConstructor
-@FieldDefaults(level = PRIVATE, makeFinal = true)
+@FieldDefaults(level = PRIVATE)
 public class Output implements Closeable {
+  private static final int DEFAULT_CAPACITY = 1024;
 
-  ByteArrayOutputStream outputStream = new ByteArrayOutputStream();
+  ByteBuffer buffer;
+  boolean open = true;
 
   @Getter
-  Charset charset;
+  final Charset charset;
+
+  /**
+   * Create a new {@link Output} with a default size.
+   * @param charset to use
+   */
+  @Deprecated
+  public Output(Charset charset) {
+    this(charset, DEFAULT_CAPACITY);
+  }
+
+  /**
+   * Create a new {@link Output}.
+   * @param charset to use
+   * @param capacity initially allocated
+   */
+  public Output(Charset charset, int capacity) {
+    this.charset = charset;
+    ensureCapacity(capacity);
+  }
 
   /**
    * Writes the string to the output.
@@ -62,7 +81,11 @@ public class Output implements Closeable {
    */
   @SneakyThrows
   public Output write (byte[] bytes) {
-    outputStream.write(bytes);
+    ensureOpen();
+    if (bytes.length > 0) {
+      ensureCapacity(buffer.position() + bytes.length);
+      buffer.put(bytes);
+    }
     return this;
   }
 
@@ -77,7 +100,11 @@ public class Output implements Closeable {
    */
   @SneakyThrows
   public Output write (byte[] bytes, int offset, int length) {
-    outputStream.write(bytes, offset, length);
+    ensureOpen();
+    if (length > 0) {
+      ensureCapacity(buffer.position() + length);
+      buffer.put(bytes, offset, length);
+    }
     return this;
   }
 
@@ -87,11 +114,54 @@ public class Output implements Closeable {
    * @return byte array representation of output
    */
   public byte[] toByteArray () {
-    return outputStream.toByteArray();
+    return buffer.array();
   }
 
   @Override
   public void close () throws IOException {
-    outputStream.close();
+    synchronized (this) {
+      this.open = false;
+    }
+  }
+
+  private void ensureOpen () {
+    synchronized (this) {
+      if (!open) {
+        throw new IllegalStateException();
+      }
+    }
+  }
+
+  private void ensureCapacity (int i) {
+    if (i < 0) {
+      throw new OutOfMemoryError();
+    }
+    synchronized (this) {
+      if (buffer == null || buffer.capacity() < i) {
+        int capacity;
+        if (buffer == null) {
+          capacity = i;
+        } else {
+          capacity = buffer.capacity() << 1;
+          if (capacity < 0) {
+            capacity = Integer.MAX_VALUE - 8;
+          }
+          if (capacity < i) {
+            capacity = i;
+          }
+        }
+        byte[] content = new byte[capacity];
+
+        int position;
+        if (buffer == null) {
+          position = 0;
+        } else {
+          position = buffer.position();
+          System.arraycopy(buffer.array(), 0, content, 0, position);
+        }
+        buffer = ByteBuffer.wrap(content);
+        buffer.position(position);
+      }
+    }
   }
 }

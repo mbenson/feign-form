@@ -76,8 +76,9 @@ public class MultipartFormContentProcessor implements ContentProcessor {
 
   @Override
   public void process (RequestTemplate template, Charset charset, Map<String, Object> data) throws EncodeException {
-    val boundary = Long.toHexString(System.currentTimeMillis());
-    val output = new Output(charset);
+    String boundary = Long.toHexString(System.currentTimeMillis());
+    int capacity = estimateRequiredCapacity(charset, data, boundary);
+    val output = new Output(charset, capacity);
 
     for (val entry : data.entrySet()) {
       if (entry == null || entry.getKey() == null || entry.getValue() == null) {
@@ -152,6 +153,18 @@ public class MultipartFormContentProcessor implements ContentProcessor {
    */
   public final Collection<Writer> getWriters () {
     return Collections.unmodifiableCollection(writers);
+  }
+
+  private int estimateRequiredCapacity (Charset charset, Map<String, Object> data, String boundary) {
+    int result = boundary.length() + CRLF.length() + 4;
+    for (val entry : data.entrySet()) {
+      if (entry == null || entry.getKey() == null || entry.getValue() == null) {
+        continue;
+      }
+      val writer = findApplicableWriter(entry.getValue());
+      result += writer.length(charset, boundary, entry.getKey(), entry.getValue());
+    }
+    return result;
   }
 
   private Writer findApplicableWriter (Object value) {

@@ -16,6 +16,8 @@
 
 package feign.form.multipart;
 
+import java.nio.charset.Charset;
+
 import feign.codec.EncodeException;
 
 /**
@@ -35,6 +37,16 @@ public interface Writer {
    * @throws EncodeException in case of any encode exception
    */
   void write (Output output, String boundary, String key, Object value) throws EncodeException;
+
+  /**
+   * Obtain the best-guess length of the specified, applicable value object.
+   * @param boundary  data boundary.
+   * @param key       name for piece of data.
+   * @param value     piece of data.
+   * @return {@code int} length of {@code value}
+   * @see #isApplicable(Object)
+   */
+  int length (Charset charset, String boundary, String key, Object value);
 
   /**
    * Answers on question - "could this writer properly write the value".

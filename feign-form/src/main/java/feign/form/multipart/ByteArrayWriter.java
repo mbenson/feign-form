@@ -16,6 +16,8 @@
 
 package feign.form.multipart;
 
+import java.nio.charset.CharsetEncoder;
+
 import feign.codec.EncodeException;
 
 /**
@@ -35,5 +37,11 @@ public class ByteArrayWriter extends AbstractWriter {
 
     byte[] bytes = (byte[]) value;
     output.write(bytes);
+  }
+
+  @Override
+  public int length (CharsetEncoder encoder, String key, Object value) {
+    int fileMetadataLength = fileMetadataLength(encoder, key, null, null);
+    return fileMetadataLength + ((byte[]) value).length;
   }
 }

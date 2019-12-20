@@ -17,11 +17,14 @@
 package feign.form.spring;
 
 import java.io.IOException;
+import java.nio.charset.CharsetEncoder;
 
 import feign.codec.EncodeException;
 import feign.form.multipart.AbstractWriter;
 import feign.form.multipart.Output;
+
 import lombok.val;
+
 import org.springframework.web.multipart.MultipartFile;
 
 /**
@@ -47,5 +50,13 @@ public class SpringSingleMultipartFileWriter extends AbstractWriter {
       throw new EncodeException("Getting multipart file's content bytes error", ex);
     }
     output.write(bytes);
+  }
+
+  @Override
+  protected int length (CharsetEncoder encoder, String key, Object value) {
+    val file = (MultipartFile) value;
+
+    return fileMetadataLength(encoder, key, file.getOriginalFilename(), file.getContentType())
+        + (int) file.getSize();
   }
 }

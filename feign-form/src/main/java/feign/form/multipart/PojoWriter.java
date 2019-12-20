@@ -20,6 +20,8 @@ import static feign.form.util.PojoUtil.isUserPojo;
 import static feign.form.util.PojoUtil.toMap;
 import static lombok.AccessLevel.PRIVATE;
 
+import java.nio.charset.Charset;
+
 import feign.codec.EncodeException;
 import lombok.RequiredArgsConstructor;
 import lombok.experimental.FieldDefaults;
@@ -51,6 +53,20 @@ public class PojoWriter extends AbstractWriter {
 
       writer.write(output, boundary, entry.getKey(), entry.getValue());
     }
+  }
+
+  @Override
+  public int length (Charset charset, String boundary, String key, Object value) {
+    val map = toMap(value);
+    int result = 0;
+    for (val entry : map.entrySet()) {
+      val writer = findApplicableWriter(entry.getValue());
+      if (writer == null) {
+        continue;
+      }
+      result += writer.length(charset, boundary, key, value);
+    }
+    return result;
   }
 
   private Writer findApplicableWriter (Object value) {

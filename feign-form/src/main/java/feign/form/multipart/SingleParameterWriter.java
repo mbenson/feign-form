@@ -18,14 +18,21 @@ package feign.form.multipart;
 
 import static feign.form.ContentProcessor.CRLF;
 
+import java.nio.charset.CharsetEncoder;
+
 import feign.codec.EncodeException;
-import lombok.val;
 
 /**
  *
  * @author Artem Labazin
  */
 public class SingleParameterWriter extends AbstractWriter {
+  private static final String CONTENT_DISPOSITION_FORMAT =
+      "Content-Disposition: form-data; name=\"%s\"";
+  private static final String CONTENT_TYPE_SPECIFICATION = "Content-Type: text/plain; charset=";
+
+  private static final int BASE_LENGTH =
+      CONTENT_DISPOSITION_FORMAT.length() - 2 + CONTENT_TYPE_SPECIFICATION.length() + CRLF.length() * 3;
 
   @Override
   public boolean isApplicable (Object value) {
@@ -36,13 +43,18 @@ public class SingleParameterWriter extends AbstractWriter {
 
   @Override
   protected void write (Output output, String key, Object value) throws EncodeException {
-    val string = new StringBuilder()
-        .append("Content-Disposition: form-data; name=\"").append(key).append('"').append(CRLF)
-        .append("Content-Type: text/plain; charset=").append(output.getCharset().name()).append(CRLF)
-        .append(CRLF)
-        .append(value.toString())
-        .toString();
+    output.write(String.format(CONTENT_DISPOSITION_FORMAT, key));
+    output.write(CRLF);
+    output.write(CONTENT_TYPE_SPECIFICATION);
+    output.write(output.getCharset().name());
+    output.write(CRLF);
+    output.write(CRLF);
+    output.write(String.valueOf(value));
+  }
 
-    output.write(string);
+  @Override
+  protected int length (CharsetEncoder encoder, String key, Object value) {
+    return predictByteCount(encoder, BASE_LENGTH + key.length() + encoder.charset().name().length()
+        + String.valueOf(value).length());
   }
 }
